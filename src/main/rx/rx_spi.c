@@ -53,6 +53,7 @@
 #include "rx/cc2500_sfhss.h"
 #include "rx/cyrf6936_spektrum.h"
 #include "rx/expresslrs.h"
+#include "rx/rx_spi_common.h"
 
 uint16_t rxSpiRcData[MAX_SUPPORTED_RC_CHANNEL_COUNT];
 STATIC_UNIT_TESTED uint8_t rxSpiPayload[RX_SPI_MAX_PAYLOAD_SIZE];

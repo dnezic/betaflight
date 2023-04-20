@@ -7,23 +7,22 @@ RX_SRC = \
     rx/cc2500_redpine.c \
     rx/a7105_flysky.c \
     rx/cyrf6936_spektrum.c \
-    drivers/rx/expresslrs_driver.c \
-    rx/expresslrs.c \
-    rx/expresslrs_common.c \
-    rx/expresslrs_telemetry.c \
-    drivers/rx/rx_cc2500.c \
-    drivers/rx/rx_a7105.c \
-    drivers/rx/rx_cyrf6936.c \
-    drivers/rx/rx_sx127x.c \
-    drivers/rx/rx_sx1280.c \
+    drivers/rx/rx_nrf24l01.c \
+    rx/nrf24_custom.c
 
 F405_TARGETS += $(TARGET)
 
 CUSTOM_DEFAULTS_EXTENDED = yes
 
-FEATURES       += VCP SDCARD_SPI SDCARD_SDIO ONBOARDFLASH
 
+FEATURES       += VCP SDCARD_SDIO ONBOARDFLASH RX_SPI GPS TELEMETRY
 TARGET_SRC = \
+    drivers/usb_msc_common.c \
+    drivers/usb_msc_f4xx.c \
+    msc/usbd_msc_desc.c \
+    msc/usbd_storage.c \
+    msc/usbd_storage_sdio.c \
+    drivers/sdio_f4xx.c \
 	$(addprefix drivers/accgyro/,$(notdir $(wildcard $(SRC_DIR)/drivers/accgyro/*.c))) \
 	$(ROOT)/lib/main/BoschSensortec/BMI270-Sensor-API/bmi270_maximum_fifo.c \
 	$(addprefix drivers/barometer/,$(notdir $(wildcard $(SRC_DIR)/drivers/barometer/*.c))) \
