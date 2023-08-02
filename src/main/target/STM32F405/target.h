@@ -18,6 +18,8 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+// OUR TARGET
+
 #pragma once
 
 #define TARGET_BOARD_IDENTIFIER "S405"
@@ -128,7 +130,7 @@
 #define USE_BARO
 #define USE_BARO_BMP280
 #define USE_MAG
-#define USE_MAG_AK8963
+#define USE_MAG_HMC5883
 
 #undef USE_BARO_SPI_BMP280
 
