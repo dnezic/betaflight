@@ -46,12 +46,23 @@
 #include "rx/rx_spi_common.h"
 #include "drivers/rx/rx_xn297.h"
 #include "rx/nrf24_v202.h"
+#include "sensors/battery.h"
 
 /*
  * Custom Houston protocol
  */
-// #define V2X2_DEBUG
-#define V2X2_RC_CHANNEL_COUNT 4
+#define V2X2_DEBUG
+
+/*
+    RC_SPI_ROLL = 0,
+    RC_SPI_PITCH,
+    RC_SPI_THROTTLE,
+    RC_SPI_YAW,
+    RC_SPI_AUX1,
+    RC_SPI_AUX2,
+    RC_SPI_AUX3,
+*/
+#define V2X2_RC_CHANNEL_COUNT 6
 
 #define CRC_LEN 2
 
@@ -129,9 +140,7 @@ typedef struct
 
 //static Command command;
 static Telemetry telemetry;
-#ifdef V2X2_DEBUG
-uint8_t cnt = 0;
-#endif
+uint16_t battery_voltage;
 
 /* static const unsigned char v2x2_channelindex[] = {RC_SPI_THROTTLE, RC_SPI_YAW, RC_SPI_PITCH, RC_SPI_ROLL,
                                                   RC_SPI_AUX1, RC_SPI_AUX2, RC_SPI_AUX3, RC_SPI_AUX4, RC_SPI_AUX5, RC_SPI_AUX6, RC_SPI_AUX7};
@@ -169,12 +178,6 @@ bool bind = false;
 /* called by the scheduler */
 rx_spi_received_e v202Nrf24DataReceived(uint8_t *payload)
 {
-#ifdef V2X2_DEBUG
-    debug[0] = 4;
-    debug[1] = 1;
-    debug[2] = 1;
-    debug[3] = ++cnt;
-#endif    
 
     rx_spi_received_e ret = RX_SPI_RECEIVED_NONE;
 
@@ -182,27 +185,62 @@ rx_spi_received_e v202Nrf24DataReceived(uint8_t *payload)
         return ret;
     }
 
-    /*if(bind == false) {
-        bind = true;
-        return RX_SPI_RECEIVED_BIND;
-    } */   
-
-    NRF24L01_WriteReg(NRF24L01_07_STATUS, BIT(NRF24L01_07_STATUS_RX_DR)); // clear the RX_DR flag
     NRF24L01_ReadPayload(payload, NRF_PAYLOAD_SIZE);
-    NRF24L01_FlushRx();
-
-    ret = RX_SPI_RECEIVED_DATA;            
+    NRF24L01_WriteReg(NRF24L01_07_STATUS, BIT(NRF24L01_07_STATUS_RX_DR)); // clear the RX_DR flag
+    // NRF24L01_FlushRx();
+               
     NRF24L01_WriteAckPayload((uint8_t *)&telemetry, sizeof(telemetry), 1);
 
     Command* command = (Command*) payload;    
-    if (command->op != 0x00)
+
+    #ifdef V2X2_DEBUG
+        debug[0] = command->op;
+        debug[1] = command->value;
+        debug[2] = command->throttle;
+        debug[3] = command->aux1;
+    #endif
+
+    /* zeros and PID_CAL are not valid for Betaflight */
+    if (command->op != 0x00 && command->op != PID_CAL)
     {
+
+        
+
+        ret = RX_SPI_RECEIVED_DATA;
+
+        battery_voltage = getBatteryVoltage();
+        telemetry.basic = 1;
+        telemetry.imu_counts = battery_voltage;
+        
+        rxSpiRcData[RC_SPI_THROTTLE] = convertToPwmUnsigned(command->throttle);
+        rxSpiRcData[RC_SPI_YAW] = convertToPwmUnsigned(command->yaw);   // rudder
+        rxSpiRcData[RC_SPI_PITCH] = convertToPwmUnsigned(command->pitch); // elevator
+        rxSpiRcData[RC_SPI_ROLL] = convertToPwmUnsigned(command->roll);  // aileron 
+        rxSpiRcData[RC_SPI_AUX1] = 0; // PREARM
+        
+        if (command->op == FLIGHT) {
+            if(command->value == FLIGHT_CMD) {            
+                // We are flying                
+            } else if (command->value == FLIGHT_ON) {
+                /* PREARM */
+                rxSpiRcData[RC_SPI_AUX1] = 1100;
+                /* ARM */
+                rxSpiRcData[RC_SPI_AUX2] = 1100;
+            } else if (command->value == FLIGHT_OFF) {
+                /* DISARM */
+                rxSpiRcData[RC_SPI_AUX1] = 0;
+                rxSpiRcData[RC_SPI_AUX2] = 0;
+            }
+        }
+        else if (command->op == COMM_PING)
+        {
+            // nothing here      
+            rxSpiRcData[RC_SPI_AUX1] = 0;        
+            rxSpiRcData[RC_SPI_AUX2] = 0;          
+        }
     }
 
-    rxSpiRcData[RC_SPI_THROTTLE] = convertToPwmUnsigned(payload[4]);
-    rxSpiRcData[RC_SPI_YAW] = convertToPwmUnsigned(payload[5]);   // rudder
-    rxSpiRcData[RC_SPI_ROLL] = convertToPwmUnsigned(payload[7]);  // aileron
-    rxSpiRcData[RC_SPI_PITCH] = convertToPwmUnsigned(payload[6]); // elevator
+    
     
 
     /*if (NRF24L01_ReadPayloadIfAvailable(payload, sizeof(command)))
@@ -216,31 +254,20 @@ rx_spi_received_e v202Nrf24DataReceived(uint8_t *payload)
         }
     }*/
 
-#ifdef V2X2_DEBUG
-    debug[0] = 4;
-    debug[1] = 1;
-    debug[2] = 1;
-    debug[3] = ++cnt;
-#endif
     return ret;
 }
 
 static void v202Nrf24Setup(rx_spi_protocol_e protocol)
 {
 
-#ifdef V2X2_DEBUG
-    debug[0] = 1;
-    debug[1] = 0;
-    debug[2] = 0;
-    debug[3] = ++cnt;
-#endif
+
     NRF24L01_Initialize(BIT(NRF24L01_00_CONFIG_EN_CRC) | BIT(NRF24L01_00_CONFIG_CRCO)); // 2-byte CRC
     
     NRF24L01_Activate(0x73); // activate R_RX_PL_WID, W_ACK_PAYLOAD, and W_TX_PAYLOAD_NOACK registers   
     
     NRF24L01_WriteReg(NRF24L01_02_EN_RXADDR, BIT(NRF24L01_02_EN_RXADDR_ERX_P1) | BIT(NRF24L01_02_EN_RXADDR_ERX_P2));
     NRF24L01_WriteReg(NRF24L01_03_SETUP_AW, NRF24L01_03_SETUP_AW_5BYTES); // 5-byte RX/TX address
-    NRF24L01_WriteReg(NRF24L01_04_SETUP_RETR, 0);
+    NRF24L01_WriteReg(NRF24L01_04_SETUP_RETR, (uint8_t) (NRF24L01_04_SETUP_RETR_ARD_2250us << 4) | NRF24L01_04_SETUP_RETR_ARC_10);
     NRF24L01_WriteReg(NRF24L01_11_RX_PW_P0, NRF_PAYLOAD_SIZE);
 
     NRF24L01_WriteReg(NRF24L01_1D_FEATURE, BIT(NRF24L01_1D_FEATURE_EN_ACK_PAY) | BIT(NRF24L01_1D_FEATURE_EN_DPL));    
@@ -268,36 +295,25 @@ static void v202Nrf24Setup(rx_spi_protocol_e protocol)
     NRF24L01_FlushTx();
     NRF24L01_FlushRx();
 
-#ifdef V2X2_DEBUG
-    debug[1] = 2;
-#endif
-    
-
     NRF24L01_WriteReg(NRF24L01_05_RF_CH, NRF_CHANNEL);    
     NRF24L01_SetRxMode(); // enter receive mode to start listening for packets
     NRF24L01_WriteAckPayload((uint8_t *)&telemetry, sizeof(telemetry), 1);
 
-    
-#ifdef V2X2_DEBUG
-    debug[2] = 9;
-    debug[3] = ++cnt;
-#endif
-    
+   
 }
 
 bool v202Nrf24Init(const struct rxSpiConfig_s *rxSpiConfig, struct rxRuntimeState_s *rxRuntimeState, rxSpiExtiConfig_t *extiConfig)
 {
     UNUSED(extiConfig);    
 
-#ifdef V2X2_DEBUG
-    debug[0] = 1;
-    debug[1] = 1;
-    debug[2] = 1;
-    debug[3] = ++cnt;
-#endif
-
     rxRuntimeState->channelCount = V2X2_RC_CHANNEL_COUNT;
     v202Nrf24Setup((rx_spi_protocol_e)rxSpiConfig->rx_spi_protocol);
+
+    rxSpiRcData[RC_SPI_THROTTLE] = 0;
+    rxSpiRcData[RC_SPI_YAW] = 0;
+    rxSpiRcData[RC_SPI_PITCH] = 0;
+    rxSpiRcData[RC_SPI_ROLL] = 0;
+    rxSpiRcData[RC_SPI_AUX1] = 0;
 
     return true;
 }
