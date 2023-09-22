@@ -938,6 +938,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         break;
     }
 
+#if defined(USE_OSD)
     case MSP_OSD_CONFIG: {
 #define OSD_FLAGS_OSD_FEATURE           (1 << 0)
 //#define OSD_FLAGS_OSD_SLAVE             (1 << 1)
@@ -948,7 +949,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
 #define OSD_FLAGS_OSD_MSP_DEVICE        (1 << 6)
 
         uint8_t osdFlags = 0;
-#if defined(USE_OSD)
+
         osdFlags |= OSD_FLAGS_OSD_FEATURE;
 
         osdDisplayPortDevice_e deviceType;
@@ -979,7 +980,7 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         default:
             break;
         }
-#endif
+
         sbufWriteU8(dst, osdFlags);
 
 #ifdef USE_OSD_SD
@@ -987,9 +988,8 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, vcdProfile()->video_system);
 #else
         sbufWriteU8(dst, VIDEO_SYSTEM_HD);
-#endif
+#endif // USE_OSD_SD
 
-#ifdef USE_OSD
         // OSD specific, not applicable to OSD slaves.
 
         // Configuration
@@ -1052,9 +1052,9 @@ static bool mspCommonProcessOutCommand(int16_t cmdMSP, sbuf_t *dst, mspPostProce
         sbufWriteU8(dst, osdConfig()->camera_frame_width);
         sbufWriteU8(dst, osdConfig()->camera_frame_height);
 
-#endif // USE_OSD
         break;
     }
+#endif // USE_OSD
 
     case MSP_OSD_CANVAS: {
 #ifdef USE_OSD
@@ -1312,7 +1312,7 @@ case MSP_NAME:
             const uint8_t warningsLen = strlen(warningsBuffer);
 
             if (isBlinking) {
-                displayAttr |= DISPLAYPORT_ATTR_BLINK;
+                displayAttr |= DISPLAYPORT_BLINK;
             }
             sbufWriteU8(dst, displayAttr);  // see displayPortSeverity_e
             sbufWriteU8(dst, warningsLen);  // length byte followed by the actual characters
@@ -2522,7 +2522,7 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
             // type byte, then length byte followed by the actual characters
             const uint8_t textType = sbufBytesRemaining(src) ? sbufReadU8(src) : 0;
 
-            char* textVar;
+            const char *textVar;
 
             switch (textType) {
                 case MSP2TEXT_PILOT_NAME:
@@ -2541,9 +2541,19 @@ static mspResult_e mspFcProcessOutCommandWithArg(mspDescriptor_t srcDesc, int16_
                     textVar = currentControlRateProfile->profileName;
                     break;
 
+                case MSP2TEXT_BUILDKEY:
+                    textVar = buildKey;
+                    break;
+
+                case MSP2TEXT_RELEASENAME:
+                    textVar = releaseName;
+                    break;
+
                 default:
                     return MSP_RESULT_ERROR;
             }
+
+            if (!textVar) return MSP_RESULT_ERROR;
 
             const uint8_t textLength = strlen(textVar);
 
@@ -3573,6 +3583,34 @@ static mspResult_e mspProcessInCommand(mspDescriptor_t srcDesc, int16_t cmdMSP, 
 #endif
 
 #ifdef USE_GPS
+    case MSP2_SENSOR_GPS:
+        (void)sbufReadU8(src);              // instance
+        (void)sbufReadU16(src);             // gps_week
+        (void)sbufReadU32(src);     // ms_tow
+        gpsSetFixState(sbufReadU8(src) != 0); // fix_type
+        gpsSol.numSat = sbufReadU8(src);    // satellites_in_view
+        gpsSol.acc.hAcc = sbufReadU16(src) * 10; // horizontal_pos_accuracy - convert cm to mm
+        gpsSol.acc.vAcc = sbufReadU16(src) * 10; // vertical_pos_accuracy - convert cm to mm
+        gpsSol.acc.sAcc = sbufReadU16(src) * 10; // horizontal_vel_accuracy - convert cm to mm
+        gpsSol.dop.hdop = sbufReadU16(src); // hdop
+        gpsSol.llh.lon = sbufReadU32(src);
+        gpsSol.llh.lat = sbufReadU32(src);
+        gpsSol.llh.altCm = sbufReadU32(src); // alt
+        int32_t ned_vel_north = (int32_t)sbufReadU32(src);  // ned_vel_north
+        int32_t ned_vel_east = (int32_t)sbufReadU32(src);   // ned_vel_east
+        gpsSol.groundSpeed = (uint16_t)sqrtf((ned_vel_north * ned_vel_north) + (ned_vel_east * ned_vel_east));
+        (void)sbufReadU32(src);             // ned_vel_down
+        gpsSol.groundCourse = ((uint16_t)sbufReadU16(src) % 360);   // ground_course
+        (void)sbufReadU16(src);             // true_yaw
+        (void)sbufReadU16(src);             // year
+        (void)sbufReadU8(src);              // month
+        (void)sbufReadU8(src);              // day
+        (void)sbufReadU8(src);              // hour
+        (void)sbufReadU8(src);              // min
+        (void)sbufReadU8(src);              // sec
+        GPS_update |= GPS_MSP_UPDATE;        // MSP data signalisation to GPS functions
+        break;
+
     case MSP_SET_RAW_GPS:
         gpsSetFixState(sbufReadU8(src));
         gpsSol.numSat = sbufReadU8(src);

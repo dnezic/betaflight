@@ -83,6 +83,8 @@
 #define USE_I2C
 #define I2C_FULL_RECONFIGURABILITY
 
+#define USE_DSHOT_BITBAND
+
 #define USE_BEEPER
 #define BEEPER_PIN      PC4
 
