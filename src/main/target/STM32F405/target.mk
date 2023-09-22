@@ -17,12 +17,6 @@ CUSTOM_DEFAULTS_EXTENDED = yes
 
 FEATURES       += VCP SDCARD_SDIO ONBOARDFLASH RX_SPI GPS TELEMETRY
 TARGET_SRC = \
-    drivers/usb_msc_common.c \
-    drivers/usb_msc_f4xx.c \
-    msc/usbd_msc_desc.c \
-    msc/usbd_storage.c \
-    msc/usbd_storage_sdio.c \
-    drivers/sdio_f4xx.c \
 	$(addprefix drivers/accgyro/,$(notdir $(wildcard $(SRC_DIR)/drivers/accgyro/*.c))) \
 	$(ROOT)/lib/main/BoschSensortec/BMI270-Sensor-API/bmi270_maximum_fifo.c \
 	$(addprefix drivers/barometer/,$(notdir $(wildcard $(SRC_DIR)/drivers/barometer/*.c))) \

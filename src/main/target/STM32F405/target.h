@@ -27,8 +27,19 @@
 #define USBD_PRODUCT_STRING     "Betaflight STM32F405"
 
 #ifndef STM32F405
-#define STM32F405
+//#define STM32F405
 #endif
+
+#ifndef STM32F407
+#define STM32F407
+#endif
+
+#ifndef STM32F407xx
+#define STM32F407xx
+#endif
+
+//#define STM32F407xx
+//#define STM32F40_41xxx
 
 #define FC_TARGET_MCU     STM32F405
 
@@ -140,8 +151,8 @@
 
 #define USE_SDCARD
 #define USE_SDCARD_SDIO
-#define SDCARD_DETECT_PIN PC13
-#define SDCARD_DETECT_INVERTED
+#undef SDCARD_DETECT_PIN
+#undef SDCARD_DETECT_INVERTED
 #define SDIO_DEVICE             SDIODEV_1
 #define SDIO_USE_4BIT           1
 #define SDIO_CK_PIN             PC12
@@ -150,10 +161,6 @@
 #define SDIO_D1_PIN             PC9
 #define SDIO_D2_PIN             PC10
 #define SDIO_D3_PIN             PC11
-
-#ifdef USE_SDCARD
-#define USE_SDCARD_SDIO
-#endif
 
 #undef USE_SDCARD_SPI
 
@@ -165,3 +172,9 @@
 #undef USE_RX_SX127X
 #undef USE_RX_CC2500
 
+#define USE_FLASHFS
+#define ENABLE_BLACKBOX_LOGGING_ON_SDCARD_BY_DEFAULT 1
+
+#define USE_FLASH_TOOLS
+#define USE_FLASH
+#define USE_FLASH_W25Q128FV
