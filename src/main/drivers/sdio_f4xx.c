@@ -1560,7 +1560,10 @@ static SD_Error_t SD_IsCardProgramming(uint8_t *pStatus)
   */
 bool SD_Initialize_LL(DMA_Stream_TypeDef *dma)
 {
-    const dmaIdentifier_e dmaIdentifier = dmaGetIdentifier((dmaResource_t *)dmaStream);
+
+    const dmaIdentifier_e dmaIdentifier = DMA2_ST3_HANDLER;
+    //dmaGetIdentifier((dmaResource_t *)dmaStream);    
+
     if (!(dma == DMA2_Stream3 || dma == DMA2_Stream6) || !dmaAllocate(dmaIdentifier, OWNER_SDCARD, 0)) {
         return false;
     }
@@ -1634,7 +1637,7 @@ bool SD_Initialize_LL(DMA_Stream_TypeDef *dma)
         DMA_MDATAALIGN_WORD | DMA_PRIORITY_VERY_HIGH |
         DMA_MBURST_INC4 | DMA_PBURST_INC4 |
         DMA_MEMORY_TO_PERIPH);
-    dmaStream->FCR  = (DMA_SxFCR_DMDIS | DMA_SxFCR_FTH); // Configuration FIFO control register
+    dmaStream->FCR  = (DMA_SxFCR_DMDIS | DMA_SxFCR_FTH); // Configuration FIFO control register    
     dmaEnable(dmaIdentifier);
     if (dmaStream == DMA2_Stream3) {
         dmaSetHandler(dmaIdentifier, SDIO_DMA_ST3_IRQHandler, 1, 0);

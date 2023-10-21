@@ -209,7 +209,7 @@ static void sdcardSdio_init(const sdcardConfig_t *config, const spiPinConfig_t *
         return;
     }
 
-    sdcard.dmaIdentifier = dmaGetIdentifier(dmaChannelSpec->ref);
+    sdcard.dmaIdentifier = DMA2_ST3_HANDLER; // dmaGetIdentifier(dmaChannelSpec->ref);
 
     if (sdcard.dmaIdentifier == 0) {
         sdcard.state = SDCARD_STATE_NOT_PRESENT;

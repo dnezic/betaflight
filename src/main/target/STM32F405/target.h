@@ -155,6 +155,7 @@
 #define USE_SDCARD_SDIO
 #undef SDCARD_DETECT_PIN
 #undef SDCARD_DETECT_INVERTED
+#define SDCARD_SDIO_DMA_OPT 0
 #define SDIO_DEVICE             SDIODEV_1
 #define SDIO_USE_4BIT           1
 #define SDIO_CK_PIN             PC12
@@ -180,3 +181,4 @@
 #define USE_FLASH_TOOLS
 #define USE_FLASH
 #define USE_FLASH_W25Q128FV
+
